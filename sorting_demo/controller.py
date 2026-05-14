@@ -7,7 +7,7 @@ import cv2
 import mujoco
 import numpy as np
 
-from .poses import ARM_POSES
+from .poses import ARM_POSES, GRIPPER_CLOSED, GRIPPER_OPEN
 from .scene_builder import ARM_JOINT_NAMES, ARM_PREFIX
 
 
@@ -32,14 +32,14 @@ class DemoState(Enum):
     SPAWN = auto()
     CONVEY = auto()
     TRACK = auto()
-    STOP_FOR_PICK = auto()
-    MOVE_TO_PICK = auto()
-    GRASP = auto()
+    MOVE_WITH_TARGET = auto()
+    GRASP_ON_MOVE = auto()
     LIFT = auto()
     MOVE_TO_PLACE = auto()
     RELEASE = auto()
     RETURN_HOME = auto()
     RESUME = auto()
+    MISS_RECOVER = auto()
 
 
 @dataclass(slots=True)
@@ -57,10 +57,17 @@ class DemoConfig:
     color_min_area: float = 120.0
     color_max_area: float = 3000.0
     pick_x_tolerance: float = 0.010
-    stop_pause_duration: float = 0.03
     resume_pause_duration: float = 0.02
     attached_block_offset: tuple[float, float, float] = (0.0, 0.0, 0.012)
     motion_duration_scale: float = 0.6
+    approach_x_window: float = 0.085
+    close_trigger_lead: float = 0.018
+    miss_x_margin: float = 0.055
+    grasp_timeout: float = 0.14
+    grasp_attach_min_elapsed: float = 0.05
+    grasp_attach_distance: float = 0.028
+    approach_track_offset: tuple[float, float, float] = (0.0, 0.0, 0.008)
+    grasp_track_offset: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
 
 @dataclass(slots=True)
@@ -364,11 +371,20 @@ class ArmSequencer:
             name: int(model.jnt_dofadr[joint_id])
             for name, joint_id in self.joint_ids.items()
         }
+        self.arm_joint_names = ARM_JOINT_NAMES[:5]
+        self.arm_dof_adrs = np.array([self.dof_adrs[name] for name in self.arm_joint_names], dtype=np.int32)
+        self.joint_ranges = np.array(
+            [model.jnt_range[self.joint_ids[name]] for name in ARM_JOINT_NAMES],
+            dtype=np.float64,
+        )
         self.path_queue: list[MotionSegment] = []
         self.active_segment: MotionSegment | None = None
         self.segment_elapsed = 0.0
         self.segment_start_q: np.ndarray | None = None
         self.hold_q = self.current_q()
+        self.tracking_target: np.ndarray | None = None
+        self.tracking_reference_q: np.ndarray | None = None
+        self.tracking_gripper_target = float(self.hold_q[-1])
 
     def current_q(self) -> np.ndarray:
         return np.array([self.data.qpos[self.qpos_adrs[name]] for name in ARM_JOINT_NAMES], dtype=np.float64)
@@ -387,9 +403,11 @@ class ArmSequencer:
         mujoco.mj_forward(self.model, self.data)
 
     def apply_named_pose(self, pose_name: str) -> None:
+        self.stop_tracking()
         self.set_pose(ARM_POSES[pose_name])
 
     def start_named_path(self, segments: list[tuple[str, float]]) -> None:
+        self.stop_tracking()
         self.path_queue = [
             MotionSegment(
                 name=pose_name,
@@ -413,8 +431,76 @@ class ArmSequencer:
         self.segment_start_q = self.current_q()
         self.segment_elapsed = 0.0
 
+    def start_tcp_tracking(
+        self,
+        target_position: np.ndarray,
+        gripper_target: float = GRIPPER_OPEN,
+        reference_pose_name: str = "pick_open",
+    ) -> None:
+        self.path_queue = []
+        self.active_segment = None
+        self.segment_start_q = None
+        self.segment_elapsed = 0.0
+        self.tracking_target = np.array(target_position, dtype=np.float64)
+        self.tracking_reference_q = np.array(ARM_POSES[reference_pose_name], dtype=np.float64)
+        self.tracking_gripper_target = float(gripper_target)
+
+    def update_tracking_target(
+        self,
+        target_position: np.ndarray,
+        gripper_target: float | None = None,
+    ) -> None:
+        self.tracking_target = np.array(target_position, dtype=np.float64)
+        if gripper_target is not None:
+            self.tracking_gripper_target = float(gripper_target)
+
+    def stop_tracking(self) -> None:
+        self.tracking_target = None
+        self.tracking_reference_q = None
+
+    def tracking_error(self) -> float | None:
+        if self.tracking_target is None:
+            return None
+        return float(np.linalg.norm(self.tracking_target - self.tcp_position()))
+
+    def _update_tracking(self, dt: float) -> None:
+        if self.tracking_target is None:
+            self.set_pose(self.hold_q)
+            return
+
+        current_q = self.current_q()
+        position_error = self.tracking_target - self.tcp_position()
+        error_norm = float(np.linalg.norm(position_error))
+        if error_norm > 0.035:
+            position_error *= 0.035 / error_norm
+
+        jacp = np.zeros((3, self.model.nv), dtype=np.float64)
+        jacr = np.zeros((3, self.model.nv), dtype=np.float64)
+        mujoco.mj_jacSite(self.model, self.data, jacp, jacr, self.tcp_site_id)
+        jacobian = jacp[:, self.arm_dof_adrs]
+        damping = 2e-3
+        dq = jacobian.T @ np.linalg.solve(
+            jacobian @ jacobian.T + damping * np.eye(3, dtype=np.float64),
+            position_error,
+        )
+
+        target_q = current_q.copy()
+        target_q[:5] += 0.75 * dq
+        if self.tracking_reference_q is not None:
+            target_q[:5] += 0.04 * (self.tracking_reference_q[:5] - current_q[:5])
+        target_q[:5] = np.clip(target_q[:5], self.joint_ranges[:5, 0], self.joint_ranges[:5, 1])
+
+        gripper_error = self.tracking_gripper_target - current_q[5]
+        max_gripper_delta = 9.0 * dt
+        target_q[5] = current_q[5] + np.clip(gripper_error, -max_gripper_delta, max_gripper_delta)
+        target_q[5] = np.clip(target_q[5], self.joint_ranges[5, 0], self.joint_ranges[5, 1])
+        self.set_pose(target_q)
+
     def update(self, dt: float) -> None:
         if self.active_segment is None or self.segment_start_q is None:
+            if self.tracking_target is not None:
+                self._update_tracking(dt)
+                return
             self.set_pose(self.hold_q)
             return
         self.segment_elapsed += dt
@@ -433,6 +519,10 @@ class ArmSequencer:
         return self.active_segment is not None
 
     def status_summary(self) -> str:
+        if self.tracking_target is not None:
+            error = self.tracking_error()
+            error_text = "?" if error is None else f"{error:.3f}"
+            return f"arm=tracking err={error_text}"
         if self.active_segment is None:
             return "arm=idle"
         phase = min(1.0, self.segment_elapsed / self.active_segment.duration)
@@ -634,6 +724,74 @@ class DemoController:
     def _dur(self, base_duration: float, minimum: float = 0.06) -> float:
         return max(minimum, base_duration * self.config.motion_duration_scale)
 
+    def _pick_tracking_target(self, grasp_mode: bool) -> np.ndarray | None:
+        active_position = self.conveyor.active_block_position()
+        if active_position is None:
+            return None
+        offset = (
+            self.config.grasp_track_offset
+            if grasp_mode
+            else self.config.approach_track_offset
+        )
+        return active_position + np.array(offset, dtype=np.float64)
+
+    def _sync_pick_tracking(self, grasp_mode: bool, restart: bool = False) -> None:
+        target = self._pick_tracking_target(grasp_mode)
+        if target is None:
+            return
+        gripper_target = GRIPPER_CLOSED if grasp_mode else GRIPPER_OPEN
+        if restart or self.arm.tracking_target is None:
+            reference_pose = "pick_closed" if grasp_mode else "pick_open"
+            self.arm.start_tcp_tracking(
+                target_position=target,
+                gripper_target=gripper_target,
+                reference_pose_name=reference_pose,
+            )
+            return
+        self.arm.update_tracking_target(target, gripper_target=gripper_target)
+
+    def _should_start_moving_pick(self) -> bool:
+        active_color = self.conveyor.active_color
+        active_spawn_id = self.conveyor.active_spawn_id
+        active_position = self.conveyor.active_block_position()
+        if active_color is None or active_spawn_id is None or active_position is None:
+            return False
+        if active_spawn_id == self.handled_spawn_id:
+            return False
+        if not self._has_active_color_detection():
+            return False
+        pick_x = float(self.conveyor.pick_position[0])
+        return float(active_position[0]) >= pick_x - self.config.approach_x_window
+
+    def _should_close_on_move(self) -> bool:
+        active_position = self.conveyor.active_block_position()
+        if active_position is None:
+            return False
+        pick_x = float(self.conveyor.pick_position[0])
+        return float(active_position[0]) >= pick_x - self.config.close_trigger_lead
+
+    def _has_missed_pick_window(self) -> bool:
+        active_position = self.conveyor.active_block_position()
+        if active_position is None:
+            return True
+        pick_x = float(self.conveyor.pick_position[0])
+        return float(active_position[0]) > pick_x + self.config.miss_x_margin
+
+    def _grasp_alignment_distance(self) -> float:
+        active_position = self.conveyor.active_block_position()
+        if active_position is None:
+            return float("inf")
+        attached_position = (
+            self.arm.tcp_position()
+            + self.arm.tcp_rotation() @ np.array(self.config.attached_block_offset, dtype=np.float64)
+        )
+        return float(np.linalg.norm(active_position - attached_position))
+
+    def _can_attach_on_move(self) -> bool:
+        if self.state_elapsed < self.config.grasp_attach_min_elapsed:
+            return False
+        return self._grasp_alignment_distance() <= self.config.grasp_attach_distance
+
     def _transition(self, new_state: DemoState) -> None:
         self.state = new_state
         self.state_elapsed = 0.0
@@ -641,24 +799,21 @@ class DemoController:
         if new_state == DemoState.SPAWN:
             self.conveyor.resume()
             self.current_sort_color = None
+            self.arm.stop_tracking()
         elif new_state == DemoState.CONVEY:
             self.conveyor.resume()
+            self.arm.stop_tracking()
         elif new_state == DemoState.TRACK:
             self.conveyor.resume()
-        elif new_state == DemoState.STOP_FOR_PICK:
-            self.conveyor.pause()
+            self.arm.stop_tracking()
+        elif new_state == DemoState.MOVE_WITH_TARGET:
             self.current_sort_color = self.conveyor.active_color
             self.handled_spawn_id = self.conveyor.active_spawn_id
-        elif new_state == DemoState.MOVE_TO_PICK:
-            self.arm.start_named_path(
-                [
-                    ("pre_pick_open", self._dur(0.22)),
-                    ("pick_open", self._dur(0.18)),
-                ]
-            )
-        elif new_state == DemoState.GRASP:
-            self.arm.start_named_path([("pick_closed", self._dur(0.16, minimum=0.05))])
+            self._sync_pick_tracking(grasp_mode=False, restart=True)
+        elif new_state == DemoState.GRASP_ON_MOVE:
+            self._sync_pick_tracking(grasp_mode=True, restart=False)
         elif new_state == DemoState.LIFT:
+            self.arm.stop_tracking()
             self.arm.start_named_path([("lift_closed", self._dur(0.24))])
         elif new_state == DemoState.MOVE_TO_PLACE:
             color = self.current_sort_color or "red"
@@ -682,6 +837,9 @@ class DemoController:
             )
         elif new_state == DemoState.RESUME:
             self.conveyor.pause()
+        elif new_state == DemoState.MISS_RECOVER:
+            self.arm.stop_tracking()
+            self.arm.start_named_path([("ready_open", self._dur(0.18, minimum=0.08))])
 
     def _has_active_color_detection(self) -> bool:
         active_color = self.conveyor.active_color
@@ -689,27 +847,14 @@ class DemoController:
             return False
         return any(detection.label == active_color for detection in self.vision.last_detections)
 
-    def _should_pause_for_pick(self) -> bool:
-        active_color = self.conveyor.active_color
-        active_spawn_id = self.conveyor.active_spawn_id
-        active_position = self.conveyor.active_block_position()
-        if active_color is None or active_spawn_id is None or active_position is None:
-            return False
-        if active_spawn_id == self.handled_spawn_id:
-            return False
-        if not self._has_active_color_detection():
-            return False
-        pick_x = float(self.conveyor.pick_position[0])
-        return abs(float(active_position[0]) - pick_x) <= self.config.pick_x_tolerance
-
     def _update_tracking_states(self) -> None:
         if self.conveyor.active_color is None:
             if self.state != DemoState.SPAWN:
                 self._transition(DemoState.SPAWN)
             return
 
-        if self._should_pause_for_pick():
-            self._transition(DemoState.STOP_FOR_PICK)
+        if self._should_start_moving_pick():
+            self._transition(DemoState.MOVE_WITH_TARGET)
             return
 
         target_state = DemoState.TRACK if self._has_active_color_detection() else DemoState.CONVEY
@@ -721,22 +866,31 @@ class DemoController:
             self._update_tracking_states()
             return
 
-        if self.state == DemoState.STOP_FOR_PICK:
-            if self.state_elapsed >= self.config.stop_pause_duration:
-                self._transition(DemoState.MOVE_TO_PICK)
+        if self.state == DemoState.MOVE_WITH_TARGET:
+            if self.conveyor.active_color is None:
+                self._transition(DemoState.SPAWN)
+                return
+            if self._has_missed_pick_window():
+                self._transition(DemoState.MISS_RECOVER)
+                return
+            if self._should_close_on_move():
+                self._transition(DemoState.GRASP_ON_MOVE)
             return
 
-        if self.state == DemoState.MOVE_TO_PICK and not self.arm.is_busy():
-            self._transition(DemoState.GRASP)
-            return
-
-        if self.state == DemoState.GRASP and not self.arm.is_busy():
-            self.conveyor.attach_active_block(
-                self.data,
-                self.arm.tcp_position(),
-                self.arm.tcp_rotation(),
-            )
-            self._transition(DemoState.LIFT)
+        if self.state == DemoState.GRASP_ON_MOVE:
+            if self.conveyor.active_color is None:
+                self._transition(DemoState.MISS_RECOVER)
+                return
+            if self._can_attach_on_move():
+                self.conveyor.attach_active_block(
+                    self.data,
+                    self.arm.tcp_position(),
+                    self.arm.tcp_rotation(),
+                )
+                self._transition(DemoState.LIFT)
+                return
+            if self._has_missed_pick_window() or self.state_elapsed >= self.config.grasp_timeout:
+                self._transition(DemoState.MISS_RECOVER)
             return
 
         if self.state == DemoState.LIFT and not self.arm.is_busy():
@@ -756,6 +910,11 @@ class DemoController:
             self._transition(DemoState.RESUME)
             return
 
+        if self.state == DemoState.MISS_RECOVER and not self.arm.is_busy():
+            self.current_sort_color = None
+            self._transition(DemoState.CONVEY)
+            return
+
         if self.state == DemoState.RESUME and self.state_elapsed >= self.config.resume_pause_duration:
             self.current_sort_color = None
             self._transition(DemoState.CONVEY)
@@ -763,6 +922,11 @@ class DemoController:
     def step(self) -> None:
         if not self.initialized:
             self.initialize()
+
+        if self.state == DemoState.MOVE_WITH_TARGET:
+            self._sync_pick_tracking(grasp_mode=False, restart=False)
+        elif self.state == DemoState.GRASP_ON_MOVE:
+            self._sync_pick_tracking(grasp_mode=True, restart=False)
 
         self.arm.update(self.config.control_dt)
         if self.conveyor.attached:
