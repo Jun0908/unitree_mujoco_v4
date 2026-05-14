@@ -1,0 +1,34 @@
+<mujoco model="g1 seiken demo">
+  <include file="g1_29dof.xml"/>
+
+  <statistic center="0 0 0.7" extent="1.6"/>
+
+  <visual>
+    <headlight diffuse="0.7 0.7 0.7" ambient="0.35 0.35 0.35" specular="0 0 0"/>
+    <rgba haze="0.15 0.22 0.30 1"/>
+    <global azimuth="-145" elevation="-18"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.32 0.46 0.62" rgb2="0.05 0.08 0.10" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.22 0.28 0.33" rgb2="0.12 0.18 0.22"
+      markrgb="0.85 0.85 0.85" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="6 6" reflectance="0.15"/>
+    <material name="dummy_torso" rgba="0.35 0.35 0.38 1"/>
+    <material name="dummy_head" rgba="0.72 0.18 0.18 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 1.8" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <body name="opponent_dummy" pos="0.52 -0.02 0.78">
+      <geom name="target_torso" type="capsule" fromto="0 0 0 0 0 0.34" size="0.10" material="dummy_torso" contype="1" conaffinity="1"/>
+      <geom name="target_shoulders" type="capsule" fromto="0 -0.14 0.26 0 0.14 0.26" size="0.045" material="dummy_torso" contype="1" conaffinity="1"/>
+      <body name="target_head_body" pos="0 0 0.42">
+        <site name="target_head_site" pos="0 0 0" size="0.02"/>
+        <geom name="target_head_geom" type="sphere" size="0.09" material="dummy_head" contype="1" conaffinity="1"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

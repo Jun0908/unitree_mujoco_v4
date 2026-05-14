@@ -1,0 +1,167 @@
+<mujoco model="sorting_demo_scene">
+  <compiler angle="radian" meshdir="/root/unitree_mujoco/unitree_robots/so101/"/>
+
+  <option timestep="0.01" integrator="implicitfast"/>
+
+  <visual>
+    <global azimuth="135" elevation="-22"/>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.65 0.65 0.65" specular="0.1 0.1 0.1"/>
+    <rgba haze="0.14 0.18 0.22 1"/>
+  </visual>
+
+  <statistic extent="1.2" center="0.05 0.05 0.2"/>
+
+  <default>
+    <default class="block_geom">
+      <geom size="0.016 0.016 0.016" type="box" friction="0.9 0.03 0.02" solref="0.002" solimp="0.98 0.999" density="260"/>
+    </default>
+    <default class="marker_site">
+      <site size="0.008 0.005 0.005" group="2"/>
+    </default>
+    <default class="arm_main"/>
+  </default>
+
+  <asset>
+    <texture type="2d" colorspace="auto" name="floor_checker" builtin="checker" rgb1="0.9 0.91 0.92" rgb2="0.82 0.84 0.86" width="512" height="512"/>
+    <material name="floor_mat" texture="floor_checker" texrepeat="6 6" reflectance="0.12"/>
+    <material name="belt_mat" rgba="0.1 0.12 0.14 1"/>
+    <material name="frame_mat" rgba="0.72 0.76 0.8 1"/>
+    <material name="pedestal_mat" rgba="0.33 0.38 0.45 1"/>
+    <material name="bin_red_mat" rgba="0.88 0.28 0.26 0.95"/>
+    <material name="bin_blue_mat" rgba="0.2 0.42 0.9 0.95"/>
+    <material name="bin_yellow_mat" rgba="0.94 0.8 0.2 0.95"/>
+    <mesh name="arm_base_motor_holder_so101_v1" content_type="model/stl" file="meshes/base_motor_holder_so101_v1.stl"/>
+    <mesh name="arm_base_so101_v2" content_type="model/stl" file="meshes/base_so101_v2.stl"/>
+    <mesh name="arm_sts3215_03a_v1" content_type="model/stl" file="meshes/sts3215_03a_v1.stl"/>
+    <mesh name="arm_waveshare_mounting_plate_so101_v2" content_type="model/stl" file="meshes/waveshare_mounting_plate_so101_v2.stl"/>
+    <mesh name="arm_motor_holder_so101_base_v1" content_type="model/stl" file="meshes/motor_holder_so101_base_v1.stl"/>
+    <mesh name="arm_rotation_pitch_so101_v1" content_type="model/stl" file="meshes/rotation_pitch_so101_v1.stl"/>
+    <mesh name="arm_upper_arm_so101_v1" content_type="model/stl" file="meshes/upper_arm_so101_v1.stl"/>
+    <mesh name="arm_under_arm_so101_v1" content_type="model/stl" file="meshes/under_arm_so101_v1.stl"/>
+    <mesh name="arm_motor_holder_so101_wrist_v1" content_type="model/stl" file="meshes/motor_holder_so101_wrist_v1.stl"/>
+    <mesh name="arm_sts3215_03a_no_horn_v1" content_type="model/stl" file="meshes/sts3215_03a_no_horn_v1.stl"/>
+    <mesh name="arm_wrist_roll_pitch_so101_v2" content_type="model/stl" file="meshes/wrist_roll_pitch_so101_v2.stl"/>
+    <mesh name="arm_wrist_roll_follower_so101_v1" content_type="model/stl" file="meshes/wrist_roll_follower_so101_v1.stl"/>
+    <mesh name="arm_moving_jaw_so101_v1" content_type="model/stl" file="meshes/moving_jaw_so101_v1.stl"/>
+  </asset>
+
+  <worldbody>
+    <geom name="floor" size="2 2 0.1" type="plane" material="floor_mat"/>
+    <site name="arm_mount" pos="0.05 -0.3 0.1" quat="0.707107 0 0 0.707107" size="0.01" rgba="0 0 0 0"/>
+    <site name="spawn_site" class="marker_site" pos="-0.22 -0.03 0.236" rgba="0 0 0 0"/>
+    <site name="pick_site" class="marker_site" pos="0.05 -0.03 0.236" rgba="0 0 0 0"/>
+    <site name="red_place_site" class="marker_site" pos="-0.14 -0.16 0.27" rgba="0 0 0 0"/>
+    <site name="blue_place_site" class="marker_site" pos="0.05 -0.15 0.272" rgba="0 0 0 0"/>
+    <site name="yellow_place_site" class="marker_site" pos="0.24 -0.16 0.27" rgba="0 0 0 0"/>
+    <site name="red_drop_site" class="marker_site" pos="-0.14 -0.16 0.13" rgba="0 0 0 0"/>
+    <site name="blue_drop_site" class="marker_site" pos="0.05 -0.15 0.13" rgba="0 0 0 0"/>
+    <site name="yellow_drop_site" class="marker_site" pos="0.24 -0.16 0.13" rgba="0 0 0 0"/>
+    <camera name="sorting_cam" pos="0.05 -0.55 0.7" quat="0.904691 0.426067 0 0"/>
+    <camera name="overview_cam" pos="0.82 -0.72 0.62" quat="0.809785 0.416874 0.188975 0.367087"/>
+    <light name="key_light" pos="0.25 -0.65 1.05" dir="0 0.33035 -0.943858" diffuse="0.95 0.95 0.95" specular="0.15 0.15 0.15"/>
+    <light name="fill_light" pos="-0.45 0.35 0.85" dir="0.19245 -0.19245 -0.96225" diffuse="0.45 0.45 0.5" specular="0.05 0.05 0.05"/>
+    <body name="arm_pedestal" pos="0.05 -0.3 0.05">
+      <geom name="pedestal_column" size="0.08 0.08 0.05" type="box" material="pedestal_mat"/>
+      <geom name="pedestal_cap" size="0.09 0.09 0.005" pos="0 0 0.055" type="box" material="frame_mat"/>
+    </body>
+    <body name="conveyor" pos="0.05 0.02 0.03">
+      <geom name="conveyor_base" size="0.34 0.11 0.08" pos="0 0 0.08" type="box" material="frame_mat"/>
+      <geom name="conveyor_belt" size="0.3 0.07 0.01" pos="0 0 0.18" type="box" material="belt_mat"/>
+      <geom name="conveyor_motor" size="0.05 0.07" pos="-0.32 0 0.1" quat="0.707107 0.707107 0 0" type="cylinder" rgba="0.25 0.27 0.3 1"/>
+      <geom name="conveyor_tail" size="0.05 0.07" pos="0.32 0 0.1" quat="0.707107 0.707107 0 0" type="cylinder" rgba="0.25 0.27 0.3 1"/>
+    </body>
+    <body name="bin_red_stand" pos="-0.14 -0.16 0">
+      <geom name="bin_red_pedestal" size="0.038 0.038 0.045" pos="0 0 0.045" type="box" material="pedestal_mat"/>
+      <geom name="bin_red_tray_cap" size="0.058 0.058 0.004" pos="0 0 0.094" type="box" material="frame_mat"/>
+    </body>
+    <body name="bin_red" pos="-0.14 -0.16 0.098">
+      <geom name="bin_red_floor" size="0.05 0.05 0.008" pos="0 0 0.008" type="box" material="bin_red_mat"/>
+      <geom name="bin_red_wall_n" size="0.05 0.006 0.03" pos="0 0.044 0.038" type="box" material="bin_red_mat"/>
+      <geom name="bin_red_wall_s" size="0.05 0.006 0.03" pos="0 -0.044 0.038" type="box" material="bin_red_mat"/>
+      <geom name="bin_red_wall_e" size="0.006 0.05 0.03" pos="0.044 0 0.038" type="box" material="bin_red_mat"/>
+      <geom name="bin_red_wall_w" size="0.006 0.05 0.03" pos="-0.044 0 0.038" type="box" material="bin_red_mat"/>
+    </body>
+    <body name="bin_blue_stand" pos="0.05 -0.15 0">
+      <geom name="bin_blue_pedestal" size="0.038 0.038 0.045" pos="0 0 0.045" type="box" material="pedestal_mat"/>
+      <geom name="bin_blue_tray_cap" size="0.058 0.058 0.004" pos="0 0 0.094" type="box" material="frame_mat"/>
+    </body>
+    <body name="bin_blue" pos="0.05 -0.15 0.098">
+      <geom name="bin_blue_floor" size="0.05 0.05 0.008" pos="0 0 0.008" type="box" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_n" size="0.05 0.006 0.03" pos="0 0.044 0.038" type="box" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_s" size="0.05 0.006 0.03" pos="0 -0.044 0.038" type="box" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_e" size="0.006 0.05 0.03" pos="0.044 0 0.038" type="box" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_w" size="0.006 0.05 0.03" pos="-0.044 0 0.038" type="box" material="bin_blue_mat"/>
+    </body>
+    <body name="bin_yellow_stand" pos="0.24 -0.16 0">
+      <geom name="bin_yellow_pedestal" size="0.038 0.038 0.045" pos="0 0 0.045" type="box" material="pedestal_mat"/>
+      <geom name="bin_yellow_tray_cap" size="0.058 0.058 0.004" pos="0 0 0.094" type="box" material="frame_mat"/>
+    </body>
+    <body name="bin_yellow" pos="0.24 -0.16 0.098">
+      <geom name="bin_yellow_floor" size="0.05 0.05 0.008" pos="0 0 0.008" type="box" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_n" size="0.05 0.006 0.03" pos="0 0.044 0.038" type="box" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_s" size="0.05 0.006 0.03" pos="0 -0.044 0.038" type="box" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_e" size="0.006 0.05 0.03" pos="0.044 0 0.038" type="box" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_w" size="0.006 0.05 0.03" pos="-0.044 0 0.038" type="box" material="bin_yellow_mat"/>
+    </body>
+    <body name="block_red" pos="-0.2 -0.03 0.236">
+      <joint name="block_red_free" type="free"/>
+      <geom name="block_red_geom" class="block_geom" rgba="0.88 0.24 0.22 1"/>
+    </body>
+    <body name="block_blue" pos="-0.28 -0.03 0.236">
+      <joint name="block_blue_free" type="free"/>
+      <geom name="block_blue_geom" class="block_geom" rgba="0.22 0.45 0.94 1"/>
+    </body>
+    <body name="block_yellow" pos="-0.36 -0.03 0.236">
+      <joint name="block_yellow_free" type="free"/>
+      <geom name="block_yellow_geom" class="block_geom" rgba="0.96 0.82 0.18 1"/>
+    </body>
+    <body name="arm_base_link" pos="0.05 -0.3 0.1" quat="0.707107 0 0 0.707107">
+      <inertial pos="0.0137179 -5.19711e-05 0.0334843" quat="0.420519 0.558762 0.57198 0.428704" mass="0.147" diaginertia="0.000136127 0.000131807 0.000113233"/>
+      <geom pos="-0.00636471 -9.94414e-05 -0.0024" quat="0.499998 0.5 0.500002 0.5" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_base_motor_holder_so101_v1"/>
+      <geom pos="-0.00636471 -8.97657e-09 -0.0024" quat="0.499998 0.5 0.500002 0.5" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_base_so101_v2"/>
+      <geom pos="0.0263353 -8.97657e-09 0.0437" quat="1 0 0 0" type="mesh" rgba="0.1 0.1 0.1 1" mesh="arm_sts3215_03a_v1"/>
+      <geom pos="-0.0309827 -0.000199441 0.0474" quat="0.499998 0.5 0.500002 0.5" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_waveshare_mounting_plate_so101_v2"/>
+      <body name="arm_shoulder_link" pos="0.0388353 -8.97657e-09 0.0624" quat="1.76036e-12 1.32679e-06 -1 -1.32679e-06">
+        <inertial pos="-0.0307604 -1.66727e-05 -0.0252713" quat="0.999865 0.00149563 0.0097084 0.0132043" mass="0.100006" diaginertia="8.37836e-05 8.10388e-05 2.39552e-05"/>
+        <joint name="arm_shoulder_pan" pos="0 0 0" axis="0 0 1" range="-1.91986 1.91986" actuatorfrcrange="-10 10"/>
+        <geom pos="-0.0303992 0.000422241 -0.0417" quat="0.499998 0.5 0.5 -0.500002" type="mesh" rgba="0.1 0.1 0.1 1" mesh="arm_sts3215_03a_v1"/>
+        <geom pos="-0.0675992 -0.000177759 0.0158499" quat="0.499998 0.5 -0.5 0.500002" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_motor_holder_so101_base_v1"/>
+        <geom pos="0.0122008 2.22413e-05 0.0464" quat="0.707105 -0.707108 0 0" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_rotation_pitch_so101_v1"/>
+        <body name="arm_upper_arm_link" pos="-0.0303992 -0.0182778 -0.0542" quat="0.499998 -0.5 -0.5 -0.500002">
+          <inertial pos="-0.0898471 -0.00838224 0.0184089" quat="0.453195 0.454063 0.541891 0.542951" mass="0.103" diaginertia="0.000150873 0.000142487 3.72451e-05"/>
+          <joint name="arm_shoulder_lift" pos="0 0 0" axis="0 0 1" range="-1.74533 1.74533" actuatorfrcrange="-10 10"/>
+          <geom pos="-0.11257 -0.0155 0.0187" quat="9.38184e-07 -0.707105 0.707108 -9.38187e-07" type="mesh" rgba="0.1 0.1 0.1 1" mesh="arm_sts3215_03a_v1"/>
+          <geom pos="-0.065085 0.012 0.0182" quat="1.32679e-06 1 0 0" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_upper_arm_so101_v1"/>
+          <body name="arm_lower_arm_link" pos="-0.11257 -0.028 0" quat="0.707105 0 0 0.707108">
+            <inertial pos="-0.0980701 0.00324376 0.0182831" quat="0.510729 0.517006 0.487966 0.483477" mass="0.104" diaginertia="0.000160262 0.000145304 2.83125e-05"/>
+            <joint name="arm_elbow_flex" pos="0 0 0" axis="0 0 1" range="-1.69 1.69" actuatorfrcrange="-10 10"/>
+            <geom pos="-0.0648499 -0.032 0.0182" quat="1.32679e-06 1 0 0" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_under_arm_so101_v1"/>
+            <geom pos="-0.0648499 -0.032 0.018" quat="1.32679e-06 -1 0 0" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_motor_holder_so101_wrist_v1"/>
+            <geom pos="-0.1224 0.0052 0.0187" quat="1.76034e-12 -1.32679e-06 1 -1.32679e-06" type="mesh" rgba="0.1 0.1 0.1 1" mesh="arm_sts3215_03a_v1"/>
+            <body name="arm_wrist_link" pos="-0.1349 0.0052 0" quat="0.707105 0 0 -0.707108">
+              <inertial pos="-0.000103312 -0.0386143 0.0281156" quat="0.967143 0.254226 0.00162226 -0.000146307" mass="0.079" diaginertia="3.68265e-05 2.74474e-05 1.89434e-05"/>
+              <joint name="arm_wrist_flex" pos="0 0 0" axis="0 0 1" range="-1.65806 1.65806" actuatorfrcrange="-10 10"/>
+              <geom pos="0 -0.0424 0.0306" quat="0.499998 0.5 0.5 -0.500002" type="mesh" rgba="0.1 0.1 0.1 1" mesh="arm_sts3215_03a_no_horn_v1"/>
+              <geom pos="0 -0.028 0.0181" quat="0.499998 -0.5 -0.5 -0.500002" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_wrist_roll_pitch_so101_v2"/>
+              <body name="arm_gripper_link" pos="0 -0.0611 0.0181" quat="0.0172101 -0.0172081 0.706899 0.706896">
+                <inertial pos="0.000213627 0.000245138 -0.025187" quat="0.600717 0.355993 0.35863 0.61951" mass="0.087" diaginertia="4.33735e-05 3.77229e-05 2.42839e-05"/>
+                <joint name="arm_wrist_roll" pos="0 0 0" axis="0 0 1" range="-2.74385 2.84121" actuatorfrcrange="-10 10"/>
+                <geom pos="0.0077 0.0001 -0.0234" quat="0.707105 -0.707108 0 0" type="mesh" rgba="0.1 0.1 0.1 1" mesh="arm_sts3215_03a_v1"/>
+                <geom pos="0 -0.000218214 0.000949706" quat="1.32679e-06 -1 0 0" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_wrist_roll_follower_so101_v1"/>
+                <body name="arm_gripper_frame_link" pos="-0.0079 -0.000218121 -0.0981274" quat="1.32679e-06 0 1 0">
+                  <inertial pos="0 0 0" mass="1e-09" diaginertia="0 0 0"/>
+                  <site name="arm_tcp_site" pos="0 0 0" size="0.006" group="2" rgba="0 0 0 0"/>
+                </body>
+                <body name="arm_moving_jaw_so101_v1_link" pos="0.0202 0.0188 -0.0234" quat="0.707105 0.707108 -1.85362e-08 1.85363e-08">
+                  <inertial pos="-0.00157495 -0.0300244 0.0192755" quat="0.695265 0.717965 -0.0245618 -0.0230097" mass="0.012" diaginertia="6.63582e-06 5.29092e-06 1.86523e-06"/>
+                  <joint name="arm_gripper" pos="0 0 0" axis="0 0 1" range="-0.174533 1.74533" actuatorfrcrange="-10 10"/>
+                  <geom pos="0 0 0.0189" quat="1 0 0 0" type="mesh" rgba="1 0.82 0.12 1" mesh="arm_moving_jaw_so101_v1"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

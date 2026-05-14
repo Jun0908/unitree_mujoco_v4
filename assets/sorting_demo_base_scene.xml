@@ -1,0 +1,127 @@
+<mujoco model="sorting_demo_base">
+  <compiler angle="degree" autolimits="true"/>
+
+  <option timestep="0.01" gravity="0 0 -9.81" integrator="implicitfast"/>
+
+  <visual>
+    <global azimuth="135" elevation="-22"/>
+    <headlight ambient="0.35 0.35 0.35" diffuse="0.65 0.65 0.65" specular="0.1 0.1 0.1"/>
+    <rgba haze="0.14 0.18 0.22 1"/>
+  </visual>
+
+  <statistic center="0.05 0.05 0.2" extent="1.2"/>
+
+  <asset>
+    <texture name="floor_checker" type="2d" builtin="checker" width="512" height="512"
+             rgb1="0.90 0.91 0.92" rgb2="0.82 0.84 0.86"/>
+    <material name="floor_mat" texture="floor_checker" texrepeat="6 6" reflectance="0.12"/>
+    <material name="belt_mat" rgba="0.10 0.12 0.14 1"/>
+    <material name="frame_mat" rgba="0.72 0.76 0.80 1"/>
+    <material name="pedestal_mat" rgba="0.33 0.38 0.45 1"/>
+    <material name="bin_red_mat" rgba="0.88 0.28 0.26 0.95"/>
+    <material name="bin_blue_mat" rgba="0.20 0.42 0.90 0.95"/>
+    <material name="bin_yellow_mat" rgba="0.94 0.80 0.20 0.95"/>
+  </asset>
+
+  <default>
+    <default class="block_geom">
+      <geom type="box" size="0.016 0.016 0.016" density="260" friction="0.9 0.03 0.02"
+            solref="0.002 1" solimp="0.98 0.999 0.001" condim="3"/>
+    </default>
+    <default class="marker_site">
+      <site type="sphere" size="0.008" group="2"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <light name="key_light" pos="0.25 -0.65 1.05" dir="0.0 0.35 -1.0"
+           diffuse="0.95 0.95 0.95" specular="0.15 0.15 0.15"/>
+    <light name="fill_light" pos="-0.45 0.35 0.85" dir="0.2 -0.2 -1.0"
+           diffuse="0.45 0.45 0.50" specular="0.05 0.05 0.05"/>
+
+    <geom name="floor" type="plane" size="2 2 0.1" material="floor_mat"/>
+
+    <body name="arm_pedestal" pos="0.05 -0.30 0.05">
+      <geom name="pedestal_column" type="box" size="0.08 0.08 0.05" material="pedestal_mat"/>
+      <geom name="pedestal_cap" pos="0 0 0.055" type="box" size="0.09 0.09 0.005" material="frame_mat"/>
+    </body>
+
+    <site name="arm_mount" pos="0.05 -0.30 0.10" quat="0.7071068 0 0 0.7071068"
+          type="sphere" size="0.01" rgba="0 0 0 0"/>
+
+    <body name="conveyor" pos="0.05 0.02 0.03">
+      <geom name="conveyor_base" pos="0 0 0.08" type="box" size="0.34 0.11 0.08" material="frame_mat"/>
+      <geom name="conveyor_belt" pos="0 0 0.18" type="box" size="0.30 0.07 0.01" material="belt_mat"/>
+      <geom name="conveyor_motor" pos="-0.32 0 0.10" type="cylinder" size="0.05 0.07" euler="90 0 0"
+            rgba="0.25 0.27 0.30 1"/>
+      <geom name="conveyor_tail" pos="0.32 0 0.10" type="cylinder" size="0.05 0.07" euler="90 0 0"
+            rgba="0.25 0.27 0.30 1"/>
+    </body>
+
+    <site name="spawn_site" class="marker_site" pos="-0.22 -0.03 0.236" rgba="0 0 0 0"/>
+    <site name="pick_site" class="marker_site" pos="0.05 -0.03 0.236" rgba="0 0 0 0"/>
+    <site name="red_place_site" class="marker_site" pos="-0.14 -0.16 0.270" rgba="0 0 0 0"/>
+    <site name="blue_place_site" class="marker_site" pos="0.05 -0.15 0.272" rgba="0 0 0 0"/>
+    <site name="yellow_place_site" class="marker_site" pos="0.24 -0.16 0.270" rgba="0 0 0 0"/>
+    <site name="red_drop_site" class="marker_site" pos="-0.14 -0.16 0.130" rgba="0 0 0 0"/>
+    <site name="blue_drop_site" class="marker_site" pos="0.05 -0.15 0.130" rgba="0 0 0 0"/>
+    <site name="yellow_drop_site" class="marker_site" pos="0.24 -0.16 0.130" rgba="0 0 0 0"/>
+
+    <body name="bin_red_stand" pos="-0.14 -0.16 0">
+      <geom name="bin_red_pedestal" type="box" pos="0 0 0.045" size="0.038 0.038 0.045" material="pedestal_mat"/>
+      <geom name="bin_red_tray_cap" type="box" pos="0 0 0.094" size="0.058 0.058 0.004" material="frame_mat"/>
+    </body>
+
+    <body name="bin_red" pos="-0.14 -0.16 0.098">
+      <geom name="bin_red_floor" type="box" pos="0 0 0.008" size="0.05 0.05 0.008" material="bin_red_mat"/>
+      <geom name="bin_red_wall_n" type="box" pos="0 0.044 0.038" size="0.05 0.006 0.030" material="bin_red_mat"/>
+      <geom name="bin_red_wall_s" type="box" pos="0 -0.044 0.038" size="0.05 0.006 0.030" material="bin_red_mat"/>
+      <geom name="bin_red_wall_e" type="box" pos="0.044 0 0.038" size="0.006 0.05 0.030" material="bin_red_mat"/>
+      <geom name="bin_red_wall_w" type="box" pos="-0.044 0 0.038" size="0.006 0.05 0.030" material="bin_red_mat"/>
+    </body>
+
+    <body name="bin_blue_stand" pos="0.05 -0.15 0">
+      <geom name="bin_blue_pedestal" type="box" pos="0 0 0.045" size="0.038 0.038 0.045" material="pedestal_mat"/>
+      <geom name="bin_blue_tray_cap" type="box" pos="0 0 0.094" size="0.058 0.058 0.004" material="frame_mat"/>
+    </body>
+
+    <body name="bin_blue" pos="0.05 -0.15 0.098">
+      <geom name="bin_blue_floor" type="box" pos="0 0 0.008" size="0.05 0.05 0.008" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_n" type="box" pos="0 0.044 0.038" size="0.05 0.006 0.030" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_s" type="box" pos="0 -0.044 0.038" size="0.05 0.006 0.030" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_e" type="box" pos="0.044 0 0.038" size="0.006 0.05 0.030" material="bin_blue_mat"/>
+      <geom name="bin_blue_wall_w" type="box" pos="-0.044 0 0.038" size="0.006 0.05 0.030" material="bin_blue_mat"/>
+    </body>
+
+    <body name="bin_yellow_stand" pos="0.24 -0.16 0">
+      <geom name="bin_yellow_pedestal" type="box" pos="0 0 0.045" size="0.038 0.038 0.045" material="pedestal_mat"/>
+      <geom name="bin_yellow_tray_cap" type="box" pos="0 0 0.094" size="0.058 0.058 0.004" material="frame_mat"/>
+    </body>
+
+    <body name="bin_yellow" pos="0.24 -0.16 0.098">
+      <geom name="bin_yellow_floor" type="box" pos="0 0 0.008" size="0.05 0.05 0.008" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_n" type="box" pos="0 0.044 0.038" size="0.05 0.006 0.030" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_s" type="box" pos="0 -0.044 0.038" size="0.05 0.006 0.030" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_e" type="box" pos="0.044 0 0.038" size="0.006 0.05 0.030" material="bin_yellow_mat"/>
+      <geom name="bin_yellow_wall_w" type="box" pos="-0.044 0 0.038" size="0.006 0.05 0.030" material="bin_yellow_mat"/>
+    </body>
+
+    <body name="block_red" pos="-0.20 -0.03 0.236">
+      <freejoint name="block_red_free"/>
+      <geom name="block_red_geom" class="block_geom" rgba="0.88 0.24 0.22 1"/>
+    </body>
+
+    <body name="block_blue" pos="-0.28 -0.03 0.236">
+      <freejoint name="block_blue_free"/>
+      <geom name="block_blue_geom" class="block_geom" rgba="0.22 0.45 0.94 1"/>
+    </body>
+
+    <body name="block_yellow" pos="-0.36 -0.03 0.236">
+      <freejoint name="block_yellow_free"/>
+      <geom name="block_yellow_geom" class="block_geom" rgba="0.96 0.82 0.18 1"/>
+    </body>
+
+    <camera name="sorting_cam" pos="0.05 -0.55 0.70" xyaxes="1 0 0 0 0.637 0.771"/>
+    <camera name="overview_cam" pos="0.82 -0.72 0.62" xyaxes="0.659 0.752 0 -0.437 0.383 0.814"/>
+  </worldbody>
+</mujoco>

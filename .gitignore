@@ -1,0 +1,32 @@
+**/build/
+**/.vscode/
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/log/
+**/logs/
+**/install/
+simulate/mujoco
+
+# Local editor/agent metadata
+.codex
+.codex/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Test/type/lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# CMake-generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# MuJoCo/generated local artifacts
+simulate_python/mjmodel.xml
